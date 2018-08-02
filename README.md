@@ -15,7 +15,7 @@ Or, if you only want to get one customer, then you would append the customer `id
 
 	GET http://api.example.com/customers/123/
 
-For github.com/hejiheji001/web-scraper-chrome-extension user:
+For `github.com/hejiheji001/web-scraper-chrome-extension` user:
 
 Now this tool can work with web-scraper with following steps:
 1. A MySQL server which supports JSON content type.(MySQL 5.7.8+)
