@@ -205,4 +205,5 @@ ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Ar
 
 ##License (MIT)
 
-Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com).
+Original work: Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com).
+Copyright (c) 2018 Henry He (hejiheji001@gmail.com).
