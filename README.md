@@ -15,6 +15,23 @@ Or, if you only want to get one customer, then you would append the customer `id
 
 	GET http://api.example.com/customers/123/
 
+For github.com/hejiheji001/web-scraper-chrome-extension user:
+
+Now this tool can work with web-scraper with following steps:
+1. A MySQL server which supports JSON content type.(MySQL 5.7.8+)
+2. Create a table
+```SQL
+CREATE TABLE `sitemap` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `sitemapid` varchar(100) NOT NULL,
+  `content` text,
+  `data` json DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=80 DEFAULT CHARSET=utf8mb4;
+```
+3. Setup the server address and table name in web-scraper option page and save.
+4. Done.
+
 ##Requirements
 
 - PHP 5.4+ & PDO
