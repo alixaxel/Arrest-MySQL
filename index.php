@@ -337,7 +337,13 @@ ArrestDB::Serve('PUT', '/(#any)/(#any)/(#any)', function ($table, $fieldName, $f
 			if(is_array($json) === true){
 				$content = $json['content'];
 				$field = $json['field'];
-				$distinct = $json['distinct'];
+
+				$distinct = 'PRESERVE';
+				if (isset($json['distinct']) === true)
+				{
+					$distinct = $json['distinct'];
+				}
+				
 				$cast = sprintf('CAST(\'%s\' AS JSON)', $content);
 				$append = sprintf('JSON_MERGE_%s(`%s`, %s)',$distinct, $field, $cast);
 				$query = sprintf('UPDATE `%s` SET `%s` = IF(`%s` is null, %s, %s) WHERE %s = ?', $table, $field, $field, $cast, $append, $fieldName);
