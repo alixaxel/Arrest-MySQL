@@ -1,7 +1,5 @@
 <?php
 
-// $dsn = 'mysql://peAdmin:pE1qazZAQ!@rm-uf6yg5r5kj601g4gxo.mysql.rds.aliyuncs.com:3306/shared/';
-
 $dsn = '';
 $clients = [];
 /**
@@ -339,9 +337,8 @@ ArrestDB::Serve('PUT', '/(#any)/(#any)/(#any)', function ($table, $fieldName, $f
 			if(is_array($json) === true){
 				$content = $json['content'];
 				$field = $json['field'];
-				$distinct = $json['distinct'];
 				$cast = sprintf('CAST(\'%s\' AS JSON)', $content);
-				$append = sprintf('JSON_MERGE_%s(`%s`, %s)', $distinct, $field, $cast);
+				$append = sprintf('JSON_MERGE_PRESERVE(`%s`, %s)', $field, $cast);
 				$query = sprintf('UPDATE `%s` SET `%s` = IF(`%s` is null, %s, %s) WHERE %s = ?', $table, $field, $field, $cast, $append, $fieldName);
 				$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $filedValue);
 			}
