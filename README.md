@@ -1,5 +1,10 @@
 #ArrestDB
 
+This repo is forked from https://github.com/alixaxel/ArrestDB and I made some changes to support JSON data type for MySQL database.
+
+The main purpose of this repo is work with [Web Scraper Plus] and provide [MySQL Support]
+
+
 ArrestDB is a "plug-n-play" RESTful API for SQLite, MySQL and PostgreSQL databases.
 
 ArrestDB provides a REST API that maps directly to your database stucture with no configuation.
@@ -225,3 +230,7 @@ ArrestDB is a complete rewrite of [Arrest-MySQL](https://github.com/gilbitron/Ar
 Original work: Copyright (c) 2014 Alix Axel (alix.axel+github@gmail.com).
 
 Copyright (c) 2018 Henry He (hejiheji001@gmail.com).
+
+[MySQL Support]: https://github.com/hejiheji001/web-scraper-chrome-extension/wiki/MySQL-Support/
+
+[Web Scraper Plus]: https://github.com/hejiheji001/web-scraper-chrome-extension
