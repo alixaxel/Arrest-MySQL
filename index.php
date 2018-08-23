@@ -37,11 +37,16 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 
 ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 {
+	$find = "*";
 
+	if (isset($_GET['field']) === true)
+	{
+		$find = $_GET['field'];
+	}
 
 	$query = array
 	(
-		sprintf('SELECT * FROM "%s"', $table),
+		sprintf('SELECT %s FROM "%s"', $find, $table),
 		sprintf('WHERE "%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE'),
 	);
 
@@ -65,7 +70,6 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 		}
 	}
 
-
 	$query = sprintf('%s;', implode(' ', $query));
 	$result = ArrestDB::Query($query, $data);
 
@@ -84,10 +88,16 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 {
+	$find = "*";
+
+	if (isset($_GET['field']) === true)
+	{
+		$find = $_GET['field'];
+	}
 
 	$query = array
 	(
-		sprintf('SELECT * FROM "%s"', $table),
+		sprintf('SELECT %s FROM "%s"', $find, $table),
 	);
 
 	if (isset($id) === true)
@@ -120,7 +130,6 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 
 	$query = sprintf('%s;', implode(' ', $query));
 
-	
 	$result = (isset($id) === true) ? ArrestDB::Query($query, $id) : ArrestDB::Query($query);
 
 	if ($result === false)
