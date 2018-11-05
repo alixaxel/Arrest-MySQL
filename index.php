@@ -50,6 +50,15 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 		sprintf('WHERE "%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE'),
 	);
 
+	if (isset($_GET['extra']) === true)
+	{
+		$extra = "";
+		if ($find === "*") {
+			$extra = "Where 1 = 1";
+		}
+		$query[] = sprintf(' %s AND %s', $extra, $_GET['extra']);
+	}
+
 	if (isset($_GET['by']) === true)
 	{
 		if (isset($_GET['order']) !== true)
@@ -89,10 +98,18 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 {
 	$find = "*";
+	$idColumn = "id";
+	$idValue = "";
 
 	if (isset($_GET['field']) === true)
 	{
 		$find = $_GET['field'];
+	}
+
+	if (isset($_GET['id']) === true && isset($_GET['value']) === true)
+	{
+		$idColumn = $_GET['id'];
+		$idValue = $_GET['value'];
 	}
 
 	$query = array
@@ -102,11 +119,24 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 
 	if (isset($id) === true)
 	{
-		$query[] = sprintf('WHERE "%s" = ? LIMIT 1', 'id');
+		if($idValue === ""){
+			$query[] = sprintf('WHERE "%s" = ? LIMIT 1', $idColumn);
+		}else{
+			$query[] = sprintf('WHERE "%s" = \'%s\' LIMIT 1', $idColumn, $idValue);
+		}
 	}
-
 	else
 	{
+
+		if (isset($_GET['extra']) === true)
+		{
+			$extra = "";
+			if ($find === "*") {
+				$extra = "Where 1 = 1";
+			}
+			$query[] = sprintf(' %s AND %s', $extra, $_GET['extra']);
+		}
+
 		if (isset($_GET['by']) === true)
 		{
 			if (isset($_GET['order']) !== true)
@@ -127,6 +157,8 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 			}
 		}
 	}
+
+	//print_r($query);
 
 	$query = sprintf('%s;', implode(' ', $query));
 
@@ -281,8 +313,19 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 	return ArrestDB::Reply($result);
 });
 
+ArrestDB::Serve('PUT', '/(#any)', function ($table)
+{
+	if ($_GET['replace'] === "1"){
+		echo 1;
+	}else{
+		$result = ArrestDB::$HTTP['JSON_302'];
+	}
+	return ArrestDB::Reply($result);
+});
+
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
+
 	if (empty($GLOBALS['_PUT']) === true)
 	{
 		$result = ArrestDB::$HTTP[204];
@@ -304,6 +347,7 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 		);
 
 		$query = sprintf('%s;', implode(' ', $query));
+
 		$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $id);
 
 		if ($result === false)
@@ -427,6 +471,13 @@ class ArrestDB
 				'type' => 'Json'
 			],
 		],
+		'JSON_302' => [
+			'error' => [
+				'code' => 204,
+				'status' => 'Not Modified',
+				'type' => 'Json'
+			],
+		],
 		400 => [
 			'error' => [
 				'code' => 400,
@@ -529,6 +580,8 @@ class ArrestDB
 				{
 					$data = iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveArrayIterator($data)), false);
 				}
+				//print_r(func_get_args());
+				//print_r($data);
 
 				if ($result[$hash]->execute($data) === true)
 				{ 
@@ -650,6 +703,7 @@ class ArrestDB
 
 		catch (\Exception $exception)
 		{
+			echo $exception;
 			return false;
 		}
 
