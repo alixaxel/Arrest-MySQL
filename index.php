@@ -324,10 +324,10 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 	else if (is_array($GLOBALS['_PUT']) === true)
 	{
 		$data = [];
-		try{
+		if(isset($GLOBALS['_PUT']['data']['field']) === true){
 			unset($GLOBALS['_PUT']['data']['field']);
 			unset($GLOBALS['_PUT']['data']['distinct']);
-		}catch(\Exception $e){}
+		}
 
 		foreach ($GLOBALS['_PUT'] as $key => $value)
 		{
