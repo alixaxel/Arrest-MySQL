@@ -313,16 +313,6 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 	return ArrestDB::Reply($result);
 });
 
-ArrestDB::Serve('PUT', '/(#any)', function ($table)
-{
-	if ($_GET['replace'] === "1"){
-		echo 1;
-	}else{
-		$result = ArrestDB::$HTTP['JSON_302'];
-	}
-	return ArrestDB::Reply($result);
-});
-
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
 
@@ -334,7 +324,10 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 	else if (is_array($GLOBALS['_PUT']) === true)
 	{
 		$data = [];
-		$json = "";
+		try{
+			unset($GLOBALS['_PUT']['data']['field']);
+			unset($GLOBALS['_PUT']['data']['distinct']);
+		}catch(\Exception $e){}
 
 		foreach ($GLOBALS['_PUT'] as $key => $value)
 		{
@@ -421,6 +414,23 @@ ArrestDB::Serve('PUT', '/(#any)/(#any)/(#any)', function ($table, $fieldName, $f
 		}
 	}
 
+	return ArrestDB::Reply($result);
+});
+
+ArrestDB::Serve('PUT', '/(#any)', function ($table)
+{
+	if ($_GET['replace'] === "1"){
+		if (is_array($GLOBALS['_PUT']) === true && isset($_GET['fields']) === true){
+			$fields = str_replace(',', '","', $_GET['fields']);
+			$data = $GLOBALS['_PUT']['data'];
+			$query = sprintf('REPLACE INTO `%s` ("%s") VALUES %s', $table, $fields, $data);
+			$result = ArrestDB::Query($query, $GLOBALS['_PUT']);
+		}else{
+			$result = ArrestDB::$HTTP['JSON_302'];
+		}
+	}else{
+		$result = ArrestDB::$HTTP['JSON_302'];
+	}
 	return ArrestDB::Reply($result);
 });
 
@@ -561,7 +571,6 @@ class ArrestDB
 			if (isset($db, $query) === true)
 			{
 				$data = array_slice(func_get_args(), 1);
-
 				if (strncasecmp($db->getAttribute(\PDO::ATTR_DRIVER_NAME), 'mysql', 5) === 0)
 				{
 					if(strpos($query,'JSON') === false){
@@ -580,8 +589,6 @@ class ArrestDB
 				{
 					$data = iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveArrayIterator($data)), false);
 				}
-				//print_r(func_get_args());
-				//print_r($data);
 
 				if ($result[$hash]->execute($data) === true)
 				{ 
@@ -608,10 +615,11 @@ class ArrestDB
 						case 'SHOW':
 							return $result[$hash]->fetchAll();
 					}
-
 					return true;
+				}else if(strpos($query, 'REPLACE INTO') !== false){
+					$result[$hash] -> execute();
+					return $result[$hash] -> rowCount();
 				}
-
 				return false;
 			}
 
