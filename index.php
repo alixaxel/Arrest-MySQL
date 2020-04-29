@@ -2,7 +2,6 @@
 
 $dsn = '';
 $clients = [];
-
 /**
 * The MIT License
 * http://creativecommons.org/licenses/MIT/
@@ -38,11 +37,27 @@ else if (array_key_exists('HTTP_X_HTTP_METHOD_OVERRIDE', $_SERVER) === true)
 
 ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 {
+	$find = "*";
+
+	if (isset($_GET['field']) === true)
+	{
+		$find = $_GET['field'];
+	}
+
 	$query = array
 	(
-		sprintf('SELECT * FROM "%s"', $table),
+		sprintf('SELECT %s FROM "%s"', $find, $table),
 		sprintf('WHERE "%s" %s ?', $id, (ctype_digit($data) === true) ? '=' : 'LIKE'),
 	);
+
+	if (isset($_GET['extra']) === true)
+	{
+		$extra = "";
+		if ($find === "*") {
+			$extra = "Where 1 = 1";
+		}
+		$query[] = sprintf(' %s AND %s', $extra, $_GET['extra']);
+	}
 
 	if (isset($_GET['by']) === true)
 	{
@@ -82,18 +97,46 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 {
+	$find = "*";
+	$idColumn = "id";
+	$idValue = "";
+
+	if (isset($_GET['field']) === true)
+	{
+		$find = $_GET['field'];
+	}
+
+	if (isset($_GET['id']) === true && isset($_GET['value']) === true)
+	{
+		$idColumn = $_GET['id'];
+		$idValue = $_GET['value'];
+	}
+
 	$query = array
 	(
-		sprintf('SELECT * FROM "%s"', $table),
+		sprintf('SELECT %s FROM "%s"', $find, $table),
 	);
 
 	if (isset($id) === true)
 	{
-		$query[] = sprintf('WHERE "%s" = ? LIMIT 1', 'id');
+		if($idValue === ""){
+			$query[] = sprintf('WHERE "%s" = ? LIMIT 1', $idColumn);
+		}else{
+			$query[] = sprintf('WHERE "%s" = \'%s\' LIMIT 1', $idColumn, $idValue);
+		}
 	}
-
 	else
 	{
+
+		if (isset($_GET['extra']) === true)
+		{
+			$extra = "";
+			if ($find === "*") {
+				$extra = "Where 1 = 1";
+			}
+			$query[] = sprintf(' %s AND %s', $extra, $_GET['extra']);
+		}
+
 		if (isset($_GET['by']) === true)
 		{
 			if (isset($_GET['order']) !== true)
@@ -115,7 +158,10 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 		}
 	}
 
+	//print_r($query);
+
 	$query = sprintf('%s;', implode(' ', $query));
+
 	$result = (isset($id) === true) ? ArrestDB::Query($query, $id) : ArrestDB::Query($query);
 
 	if ($result === false)
@@ -134,6 +180,7 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 	}
 
 	return ArrestDB::Reply($result);
+	
 });
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
@@ -268,6 +315,7 @@ ArrestDB::Serve('POST', '/(#any)', function ($table)
 
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
+
 	if (empty($GLOBALS['_PUT']) === true)
 	{
 		$result = ArrestDB::$HTTP[204];
@@ -276,6 +324,10 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 	else if (is_array($GLOBALS['_PUT']) === true)
 	{
 		$data = [];
+		if(isset($GLOBALS['_PUT']['data']['field']) === true){
+			unset($GLOBALS['_PUT']['data']['field']);
+			unset($GLOBALS['_PUT']['data']['distinct']);
+		}
 
 		foreach ($GLOBALS['_PUT'] as $key => $value)
 		{
@@ -288,19 +340,97 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 		);
 
 		$query = sprintf('%s;', implode(' ', $query));
+
 		$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $id);
 
 		if ($result === false)
 		{
 			$result = ArrestDB::$HTTP[409];
 		}
-
 		else
 		{
 			$result = ArrestDB::$HTTP[200];
 		}
 	}
 
+	return ArrestDB::Reply($result);
+});
+
+ArrestDB::Serve('PUT', '/(#any)/(#any)/(#any)', function ($table, $fieldName, $filedValue)
+{
+	$format = 'plain';
+
+	if(strpos($_SERVER['HTTP_ACCEPT'], 'application/json') === 0){
+		$format = 'json';
+	}
+
+	if ($format === 'plain'){
+		$result = [
+			'error' => [
+				'code' => 200,
+				'status' => 'Not implemented yet. Please use `id` instead',
+			],
+		];
+	}
+	else if (empty($GLOBALS['_PUT']) === true)
+	{
+		$result = ArrestDB::$HTTP['JSON_204'];
+	}
+	else if (is_array($GLOBALS['_PUT']) === true)
+	{	
+		try{
+			$json = $GLOBALS['_PUT']['data'];
+			if(is_array($json) === true){
+				$content = $json['content'];
+				$field = $json['field'];
+
+				$distinct = 'PRESERVE';
+				if (isset($json['distinct']) === true)
+				{
+					$distinct = $json['distinct'];
+				}
+				
+				$cast = sprintf('CAST(\'%s\' AS JSON)', $content);
+				$append = sprintf('JSON_MERGE_%s(`%s`, %s)',$distinct, $field, $cast);
+				$query = sprintf('UPDATE `%s` SET `%s` = IF(`%s` is null, %s, %s) WHERE %s = ?', $table, $field, $field, $cast, $append, $fieldName);
+				$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $filedValue);
+			}
+		} catch (\Exception $e) {
+			$result = $result = [
+				'error' => [
+					'code' => 200,
+					'status' => 'json format error, missing `data` or `content` or `field`',
+				],
+			];
+		}
+
+		if ($result === false)
+		{
+			$result = ArrestDB::$HTTP['JSON_409'];
+		}
+		else
+		{
+			$result = ArrestDB::$HTTP['JSON_200'];
+		}
+	}
+
+	return ArrestDB::Reply($result);
+});
+
+ArrestDB::Serve('PUT', '/(#any)', function ($table)
+{
+	if ($_GET['replace'] === "1"){
+		if (is_array($GLOBALS['_PUT']) === true && isset($_GET['fields']) === true){
+			$fields = str_replace(',', '","', $_GET['fields']);
+			$data = $GLOBALS['_PUT']['data'];
+			$query = sprintf('REPLACE INTO `%s` ("%s") VALUES %s', $table, $fields, $data);
+			$result = ArrestDB::Query($query, $GLOBALS['_PUT']);
+		}else{
+			$result = ArrestDB::$HTTP['JSON_302'];
+		}
+	}else{
+		$result = ArrestDB::$HTTP['JSON_302'];
+	}
 	return ArrestDB::Reply($result);
 });
 
@@ -313,48 +443,119 @@ class ArrestDB
 			'success' => [
 				'code' => 200,
 				'status' => 'OK',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_200' => [
+			'success' => [
+				'code' => 200,
+				'status' => 'OK',
+				'type' => 'Json',
 			],
 		],
 		201 => [
 			'success' => [
 				'code' => 201,
 				'status' => 'Created',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_201' => [
+			'success' => [
+				'code' => 201,
+				'status' => 'Created',
+				'type' => 'Json',
 			],
 		],
 		204 => [
 			'error' => [
 				'code' => 204,
 				'status' => 'No Content',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_204' => [
+			'error' => [
+				'code' => 204,
+				'status' => 'No Content',
+				'type' => 'Json'
+			],
+		],
+		'JSON_302' => [
+			'error' => [
+				'code' => 204,
+				'status' => 'Not Modified',
+				'type' => 'Json'
 			],
 		],
 		400 => [
 			'error' => [
 				'code' => 400,
 				'status' => 'Bad Request',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_400' => [
+			'error' => [
+				'code' => 400,
+				'status' => 'Bad Request',
+				'type' => 'Json',
 			],
 		],
 		403 => [
 			'error' => [
 				'code' => 403,
 				'status' => 'Forbidden',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_403' => [
+			'error' => [
+				'code' => 403,
+				'status' => 'Forbidden',
+				'type' => 'Json',
 			],
 		],
 		404 => [
 			'error' => [
 				'code' => 404,
 				'status' => 'Not Found',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_404' => [
+			'error' => [
+				'code' => 404,
+				'status' => 'Not Found',
+				'type' => 'Json',
 			],
 		],
 		409 => [
 			'error' => [
 				'code' => 409,
 				'status' => 'Conflict',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_409' => [
+			'error' => [
+				'code' => 409,
+				'status' => 'Conflict',
+				'type' => 'Json',
 			],
 		],
 		503 => [
 			'error' => [
 				'code' => 503,
 				'status' => 'Service Unavailable',
+				'type' => 'Plain',
+			],
+		],
+		'JSON_503' => [
+			'error' => [
+				'code' => 503,
+				'status' => 'Service Unavailable',
+				'type' => 'Json',
 			],
 		],
 	];
@@ -366,11 +567,17 @@ class ArrestDB
 
 		try
 		{
+
 			if (isset($db, $query) === true)
 			{
+				$data = array_slice(func_get_args(), 1);
 				if (strncasecmp($db->getAttribute(\PDO::ATTR_DRIVER_NAME), 'mysql', 5) === 0)
 				{
-					$query = strtr($query, '"', '`');
+					if(strpos($query,'JSON') === false){
+						$query = strtr($query, '"', '`');
+					}else{
+						$data = array_slice(func_get_args(), 2);
+					}
 				}
 
 				if (empty($result[$hash = crc32($query)]) === true)
@@ -378,15 +585,13 @@ class ArrestDB
 					$result[$hash] = $db->prepare($query);
 				}
 
-				$data = array_slice(func_get_args(), 1);
-
 				if (count($data, COUNT_RECURSIVE) > count($data))
 				{
 					$data = iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveArrayIterator($data)), false);
 				}
 
 				if ($result[$hash]->execute($data) === true)
-				{
+				{ 
 					$sequence = null;
 
 					if ((strncmp($db->getAttribute(\PDO::ATTR_DRIVER_NAME), 'pgsql', 5) === 0) && (sscanf($query, 'INSERT INTO %s', $sequence) > 0))
@@ -410,10 +615,11 @@ class ArrestDB
 						case 'SHOW':
 							return $result[$hash]->fetchAll();
 					}
-
 					return true;
+				}else if(strpos($query, 'REPLACE INTO') !== false){
+					$result[$hash] -> execute();
+					return $result[$hash] -> rowCount();
 				}
-
 				return false;
 			}
 
@@ -428,7 +634,6 @@ class ArrestDB
 					\PDO::ATTR_ORACLE_NULLS => \PDO::NULL_NATURAL,
 					\PDO::ATTR_STRINGIFY_FETCHES => false,
 				);
-
 				if (preg_match('~^sqlite://([[:print:]]++)$~i', $query, $dsn) > 0)
 				{
 					$options += array
@@ -452,7 +657,6 @@ class ArrestDB
 						'journal_mode' => 'WAL',
 						'wal_autocheckpoint' => '4096',
 					);
-
 					if (strncasecmp(PHP_OS, 'WIN', 3) !== 0)
 					{
 						$memory = 131072;
@@ -507,6 +711,7 @@ class ArrestDB
 
 		catch (\Exception $exception)
 		{
+			echo $exception;
 			return false;
 		}
 
