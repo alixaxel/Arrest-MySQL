@@ -2,6 +2,7 @@
 
 $dsn = '';
 $clients = [];
+$allow_cors = 0;
 
 /**
 * The MIT License
@@ -134,7 +135,7 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 	}
 
 	return ArrestDB::Reply($result);
-});
+});head
 
 ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 {
@@ -544,6 +545,9 @@ class ArrestDB
 
 			if (headers_sent() !== true)
 			{
+				if ($allow_cors) {
+					header('Access-Control-Allow-Origin: *');
+				}
 				header(sprintf('Content-Type: application/%s; charset=utf-8', (empty($callback) === true) ? 'json' : 'javascript'));
 			}
 		}
